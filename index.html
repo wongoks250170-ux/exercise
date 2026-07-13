@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeHike - 야생동물 안전 지도 및 사전</title>
+    <style>
+        :root {
+            --primary-color: #2e7d32;
+            --danger-color: #c62828;
+            --warning-color: #ef6c00;
+            --safe-color: #2e7d32;
+            --background-color: #f5f5f5;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: #333;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        header h1 { margin: 0; font-size: 1.8rem; }
+        header p { margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9; }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .search-box button {
+            padding: 12px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* 결과 카드 스타일 */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .location-name { font-size: 1.4rem; font-weight: bold; margin: 0; }
+        
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .badge.danger { background-color: var(--danger-color); }
+        .badge.warning { background-color: var(--warning-color); }
+
+        .info-row {
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+        .info-label { font-weight: bold; color: #666; }
+
+        /* 대처 요령 섹션 */
+        .guide-box {
+            background-color: #fff9c4;
+            border-left: 5px solid #fbc02d;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        .guide-box h4 { margin: 0 0 8px 0; color: #f57f17; }
+        .guide-box ul { margin: 0; padding-left: 20px; font-size: 0.9rem; }
+        .guide-box li { margin-bottom: 5px; }
+
+        .no-result {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⛰️ SafeHike (세이프하이크)</h1>
+        <p>안전한 야외활동을 위한 야생동물 출몰 정보 및 행동 요령</p>
+    </header>
+
+    <div class="container">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="산 이름이나 지역을 입력하세요 (예: 청계산, 의왕)">
+            <button onclick="searchLocation()">검색</button>
+        </div>
+
+        <div id="noResult" class="no-result">
+            검색 결과가 없습니다. 다른 지역을 입력해 주세요.
+        </div>
+
+        <div id="resultCard" class="card">
+            <div class="card-header">
+                <h3 id="cardTitle" class="location-name">산 이름</h3>
+                <span id="cardBadge" class="badge danger">위험</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">📊 유해 동물 출몰 요약:</span>
+                <span id="animalSummary">멧돼지 출몰 주의, 벌집 제거 이력 다수</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">🚗 인근 고속도로 로드킬 기록:</span>
+                <span id="roadkillInfo">최근 1년간 00건 발생</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">🐝 경기도 벌집 제거 출동건수:</span>
+                <span id="beeInfo">해당 시/군/구 00건 출동</span>
+            </div>
+
+            <div class="guide-box">
+                <h4>⚠️ 주요 출몰 동물 대처 요령</h4>
+                <ul id="guideList">
+                    </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 공공데이터를 가공한 정적 데이터 (예시 데이터셋)
+        // 실제 개발 시에는 다운로드한 CSV/JSON 파일을 이 형식으로 파싱하여 사용합니다.
+        const mockData = [
+            {
+                keyword: "청계산",
+                location: "의왕·과천 청계산 둘레길",
+                level: "warning",
+                levelText: "주의",
+                summary: "최근 등산로 인근 뱀(살모사) 목격담 증가, 벌집 제거 이력 있음",
+                roadkill: "인근 수도권제1순환선 관련 로드킬 3건 기록",
+                beeCount: "의왕시/과천시 관내 벌집 제거 총 42건",
+                animals: ["snake", "bee"]
+            },
+            {
+                keyword: "관악산",
+                location: "안양·과천 관악산 등산로",
+                level: "danger",
+                levelText: "위험",
+                summary: "야간 및 새벽 시간대 야생 멧돼지 출몰 빈번",
+                roadkill: "인근 제2경인선 로드킬 1건 기록",
+                beeCount: "안양시 관내 벌집 제거 총 89건",
+                animals: ["boar", "bee"]
+            }
+        ];
+
+        // 2. 동물별 행동 요령 사전 데이터
+        const animalGuides = {
+            boar: [
+                "멧돼지와 눈이 마주쳤을 때는 움직이지 말고 똑바로 쳐다보세요.",
+                "돌을 던지거나 소리를 지르면 공격할 수 있으니 절대 자극하지 마세요.",
+                "가까운 나무나 바위 등 숨을 곳을 찾아 신속히 대피하세요."
+            ],
+            snake: [
+                "지정된 등산로를 벗어나 풀숲이 우거진 곳으로 들어가지 마세요.",
+                "반려견과 동행 시 리드줄을 짧게 잡아 풀숲에 코를 대지 못하게 하세요.",
+                "뱀에 물렸을 때는 상처 부위를 심장보다 낮게 두고 즉시 119에 신고하세요."
+            ],
+            bee: [
+                "등산 시 향수나 화장품, 밝은 계통의 옷은 피하는 것이 좋습니다.",
+                "벌집을 건드렸을 때는 머리를 감싸고 신속하게 20m 이상 벗어나세요."
+            ]
+        };
+
+        // 검색 함수
+        function searchLocation() {
+            const query = document.getElementById("searchInput").value.trim();
+            const card = document.getElementById("resultCard");
+            const noResult = document.getElementById("noResult");
+
+            if (!query) {
+                alert("검색어를 입력해주세요!");
+                return;
+            }
+
+            // 데이터 검색 (키워드 매칭)
+            const result = mockData.find(item => item.keyword.includes(query) || item.location.includes(query));
+
+            if (result) {
+                // 카드 데이터 매핑
+                document.getElementById("cardTitle").innerText = result.location;
+                
+                const badge = document.getElementById("cardBadge");
+                badge.innerText = result.levelText;
+                badge.className = `badge ${result.level}`;
+
+                document.getElementById("animalSummary").innerText = result.summary;
+                document.getElementById("roadkillInfo").innerText = result.roadkill;
+                document.getElementById("beeInfo").innerText = result.beeCount;
+
+                // 대처 요령 리스트 생성
+                const guideList = document.getElementById("guideList");
+                guideList.innerHTML = ""; // 기존 내용 초기화
+
+                result.animals.forEach(animal => {
+                    if (animalGuides[animal]) {
+                        animalGuides[animal].forEach(text => {
+                            const li = document.createElement("li");
+                            li.innerText = text;
+                            guideList.appendChild(li);
+                        });
+                    }
+                });
+
+                // 화면 표시 전환
+                card.style.display = "block";
+                noResult.style.display = "none";
+            } else {
+                // 결과가 없을 때
+                card.style.display = "none";
+                noResult.style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>
