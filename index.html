@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SafeHike - 야생동물 안전 지도 및 사전</title>
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=YOUR_KAKAO_MAP_API_KEY&libraries=services"></script>
     <style>
         :root {
             --primary-color: #2e7d32;
@@ -25,23 +26,23 @@
             background-color: var(--primary-color);
             color: white;
             text-align: center;
-            padding: 1.5rem;
+            padding: 1.2rem;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        header h1 { margin: 0; font-size: 1.8rem; }
-        header p { margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9; }
+        header h1 { margin: 0; font-size: 1.6rem; }
+        header p { margin: 0.4rem 0 0 0; font-size: 0.85rem; opacity: 0.9; }
 
         .container {
             max-width: 600px;
-            margin: 20px auto;
+            margin: 15px auto;
             padding: 0 15px;
         }
 
         .search-box {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px;
+            margin-bottom: 15px;
         }
 
         .search-box input {
@@ -49,11 +50,11 @@
             padding: 12px;
             border: 1px solid #ccc;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
         }
 
         .search-box button {
-            padding: 12px 20px;
+            padding: 12px 18px;
             background-color: var(--primary-color);
             color: white;
             border: none;
@@ -62,13 +63,30 @@
             font-weight: bold;
         }
 
+        /* 지도 영역 스타일 */
+        #map-container {
+            width: 100%;
+            height: 250px;
+            background-color: #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #666;
+            position: relative;
+        }
+
         /* 결과 카드 스타일 */
         .card {
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: none;
         }
 
@@ -81,40 +99,72 @@
             margin-bottom: 15px;
         }
 
-        .location-name { font-size: 1.4rem; font-weight: bold; margin: 0; }
+        .location-name { font-size: 1.3rem; font-weight: bold; margin: 0; }
         
         .badge {
-            padding: 5px 12px;
+            padding: 4px 10px;
             border-radius: 20px;
             color: white;
             font-weight: bold;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         .badge.danger { background-color: var(--danger-color); }
         .badge.warning { background-color: var(--warning-color); }
 
         .info-row {
             margin-bottom: 12px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            line-height: 1.4;
         }
-        .info-label { font-weight: bold; color: #666; }
+        .info-label { font-weight: bold; color: #555; }
 
         /* 대처 요령 섹션 */
         .guide-box {
             background-color: #fff9c4;
             border-left: 5px solid #fbc02d;
-            padding: 15px;
+            padding: 12px 15px;
             border-radius: 4px;
             margin-top: 15px;
         }
-        .guide-box h4 { margin: 0 0 8px 0; color: #f57f17; }
-        .guide-box ul { margin: 0; padding-left: 20px; font-size: 0.9rem; }
-        .guide-box li { margin-bottom: 5px; }
+        .guide-box h4 { margin: 0 0 6px 0; color: #f57f17; font-size: 0.95rem; }
+        .guide-box ul { margin: 0; padding-left: 18px; font-size: 0.85rem; color: #444; }
+        .guide-box li { margin-bottom: 4px; }
+
+        /* 유저 실시간 제보 작성 섹션 */
+        .report-box {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-top: 15px;
+        }
+        .report-box h3 { margin: 0 0 10px 0; font-size: 1.1rem; color: var(--primary-color); }
+        .report-box select, .report-box input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+        .report-box button {
+            width: 100%;
+            padding: 10px;
+            background-color: #43a047;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
         .no-result {
             text-align: center;
-            padding: 30px;
+            padding: 25px;
             color: #888;
+            background: white;
+            border-radius: 12px;
             display: none;
         }
     </style>
@@ -123,17 +173,21 @@
 
     <header>
         <h1>⛰️ SafeHike (세이프하이크)</h1>
-        <p>안전한 야외활동을 위한 야생동물 출몰 정보 및 행동 요령</p>
+        <p>공공데이터 + 실시간 제보 기반 야생동물 안전 가이드</p>
     </header>
 
     <div class="container">
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="산 이름이나 지역을 입력하세요 (예: 청계산, 의왕)">
+            <input type="text" id="searchInput" placeholder="산 이름이나 지역을 입력하세요 (예: 청계산, 관악산)">
             <button onclick="searchLocation()">검색</button>
         </div>
 
+        <div id="map-container">
+            <div id="map" style="width:100%; height:100%;">지도 로딩 중... (API 키 입력 시 활성화)</div>
+        </div>
+
         <div id="noResult" class="no-result">
-            검색 결과가 없습니다. 다른 지역을 입력해 주세요.
+            ⚠️ 해당 지역의 공공데이터 정보가 없습니다. 지도에서 실시간 제보를 확인하거나 직접 등록해 보세요!
         </div>
 
         <div id="resultCard" class="card">
@@ -144,28 +198,37 @@
             
             <div class="info-row">
                 <span class="info-label">📊 유해 동물 출몰 요약:</span>
-                <span id="animalSummary">멧돼지 출몰 주의, 벌집 제거 이력 다수</span>
+                <span id="animalSummary">-</span>
             </div>
             <div class="info-row">
                 <span class="info-label">🚗 인근 고속도로 로드킬 기록:</span>
-                <span id="roadkillInfo">최근 1년간 00건 발생</span>
+                <span id="roadkillInfo">-</span>
             </div>
             <div class="info-row">
                 <span class="info-label">🐝 경기도 벌집 제거 출동건수:</span>
-                <span id="beeInfo">해당 시/군/구 00건 출동</span>
+                <span id="beeInfo">-</span>
             </div>
 
             <div class="guide-box">
                 <h4>⚠️ 주요 출몰 동물 대처 요령</h4>
-                <ul id="guideList">
-                    </ul>
+                <ul id="guideList"></ul>
             </div>
+        </div>
+
+        <div class="report-box">
+            <h3>📢 실시간 목격 제보하기</h3>
+            <select id="reportAnimal">
+                <option value="snake">🐍 뱀 (살모사 등)</option>
+                <option value="boar">🐗 멧돼지</option>
+                <option value="bee">🐝 말벌 / 벌집</option>
+            </select>
+            <input type="text" id="reportDetail" placeholder="예: 매봉바위 50m 전 풀숲에서 목격함">
+            <button onclick="submitReport()">현재 위치/검색지역에 제보 등록</button>
         </div>
     </div>
 
     <script>
-        // 1. 공공데이터를 가공한 정적 데이터 (예시 데이터셋)
-        // 실제 개발 시에는 다운로드한 CSV/JSON 파일을 이 형식으로 파싱하여 사용합니다.
+        // 1. 공공데이터 기반 정적 데이터셋 (기존 데이터 유지 및 좌표 추가)
         const mockData = [
             {
                 keyword: "청계산",
@@ -175,7 +238,9 @@
                 summary: "최근 등산로 인근 뱀(살모사) 목격담 증가, 벌집 제거 이력 있음",
                 roadkill: "인근 수도권제1순환선 관련 로드킬 3건 기록",
                 beeCount: "의왕시/과천시 관내 벌집 제거 총 42건",
-                animals: ["snake", "bee"]
+                animals: ["snake", "bee"],
+                lat: 37.4272,
+                lng: 127.0436
             },
             {
                 keyword: "관악산",
@@ -185,7 +250,9 @@
                 summary: "야간 및 새벽 시간대 야생 멧돼지 출몰 빈번",
                 roadkill: "인근 제2경인선 로드킬 1건 기록",
                 beeCount: "안양시 관내 벌집 제거 총 89건",
-                animals: ["boar", "bee"]
+                animals: ["boar", "bee"],
+                lat: 37.4444,
+                lng: 126.9636
             }
         ];
 
@@ -207,6 +274,29 @@
             ]
         };
 
+        // 실시간 유저 제보 저장 배열 (초기 샘플 데이터 1건)
+        let userReports = [
+            { animal: "snake", detail: "청계산 입구 원터골 약수터 근처 뱀 목격", lat: 37.4300, lng: 127.0450 }
+        ];
+
+        let map = null;
+        let currentCenter = { lat: 37.5665, lng: 126.9780 }; // 기본 서울 중심
+
+        // 카카오맵 초기화 (API 로드 실패 시 일반 안내문구 유지)
+        window.onload = function() {
+            if (typeof kakao !== 'undefined' && kakao.maps) {
+                const container = document.getElementById('map');
+                const options = {
+                    center: new kakao.maps.LatLng(currentCenter.lat, currentCenter.lng),
+                    level: 6
+                };
+                map = new kakao.maps.Map(container, options);
+                renderReportMarkers();
+            } else {
+                document.getElementById('map').innerText = "💡 지도는 카카오맵 API Key 적용 후 활성화됩니다. (검색 및 제보 기능은 정상 작동)";
+            }
+        };
+
         // 검색 함수
         function searchLocation() {
             const query = document.getElementById("searchInput").value.trim();
@@ -214,17 +304,22 @@
             const noResult = document.getElementById("noResult");
 
             if (!query) {
-                alert("검색어를 입력해주세요!");
+                alert("산 이름이나 지역을 입력해주세요!");
                 return;
             }
 
-            // 데이터 검색 (키워드 매칭)
             const result = mockData.find(item => item.keyword.includes(query) || item.location.includes(query));
 
             if (result) {
-                // 카드 데이터 매핑
+                // 지도 중심 이동
+                currentCenter = { lat: result.lat, lng: result.lng };
+                if (map) {
+                    const moveLatLon = new kakao.maps.LatLng(result.lat, result.lng);
+                    map.setCenter(moveLatLon);
+                }
+
+                // 데이터 카드 UI 매핑
                 document.getElementById("cardTitle").innerText = result.location;
-                
                 const badge = document.getElementById("cardBadge");
                 badge.innerText = result.levelText;
                 badge.className = `badge ${result.level}`;
@@ -233,10 +328,9 @@
                 document.getElementById("roadkillInfo").innerText = result.roadkill;
                 document.getElementById("beeInfo").innerText = result.beeCount;
 
-                // 대처 요령 리스트 생성
+                // 대처 사전 목록 빌드
                 const guideList = document.getElementById("guideList");
-                guideList.innerHTML = ""; // 기존 내용 초기화
-
+                guideList.innerHTML = "";
                 result.animals.forEach(animal => {
                     if (animalGuides[animal]) {
                         animalGuides[animal].forEach(text => {
@@ -247,14 +341,63 @@
                     }
                 });
 
-                // 화면 표시 전환
                 card.style.display = "block";
                 noResult.style.display = "none";
             } else {
-                // 결과가 없을 때
                 card.style.display = "none";
                 noResult.style.display = "block";
             }
+        }
+
+        // 실시간 제보 등록 함수
+        function submitReport() {
+            const animal = document.getElementById("reportAnimal").value;
+            const detail = document.getElementById("reportDetail").value.trim();
+
+            if (!detail) {
+                alert("상세 목격 내용을 입력해 주세요!");
+                return;
+            }
+
+            // 검색된 지역 근처나 현재 맵 중심 기준으로 미세 변형 좌표 부여하여 등록
+            const newReport = {
+                animal: animal,
+                detail: detail,
+                lat: currentCenter.lat + (Math.random() - 0.5) * 0.005,
+                lng: currentCenter.lng + (Math.random() - 0.5) * 0.005
+            };
+
+            userReports.push(newReport);
+            alert("⚠️ 실시간 안전 제보가 지도에 등록되었습니다!");
+            document.getElementById("reportDetail").value = "";
+
+            if (map) {
+                renderReportMarkers();
+            }
+        }
+
+        // 지도에 유저 제보 마커 표시하기
+        function renderReportMarkers() {
+            if (!map) return;
+
+            userReports.forEach(report => {
+                const markerPosition = new kakao.maps.LatLng(report.lat, report.lng);
+                const marker = new kakao.maps.Marker({
+                    position: markerPosition
+                });
+                marker.setMap(map);
+
+                // 마커 클릭 시 정보창 표시
+                let icon = report.animal === 'snake' ? '🐍' : (report.animal === 'boar' ? '🐗' : '🐝');
+                const iwContent = `<div style="padding:5px; font-size:12px;">${icon} ${report.detail}</div>`;
+                const infowindow = new kakao.maps.InfoWindow({
+                    content: iwContent
+                });
+
+                kakao.maps.event.addListener(marker, 'click', function() {
+                    infowindow.open(map, marker);
+                });
+            });
         }
     </script>
 </body>
